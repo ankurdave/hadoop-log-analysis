@@ -15,22 +15,23 @@ if not os.path.isdir(sys.argv[1]):
     sys.exit(1)
 
 class TaskInfo:
-    def __init__(self, start_time, end_time, task_type):
+    def __init__(self, start_time, end_time, task_type, job_id):
         self.start_time = start_time
         self.end_time = end_time
         self.task_type = task_type
+        self.job_id = job_id
 
 def parseTime(time_string):
     return datetime.datetime.strptime(
         time_string + '000', '%Y-%m-%d %H:%M:%S,%f')
 
 task_start_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobTracker .*: Adding task \((.*)\) .* to tip ([^ ]*), for tracker')
-def matchTaskStart(line, tasks):
+def matchTaskStart(line, tasks, job_id):
     match = task_start_re.match(line)
     if match:
         task_id = match.group(3)
         task_start_time = parseTime(match.group(1))
-        task_info = TaskInfo(task_start_time, None, match.group(2))
+        task_info = TaskInfo(task_start_time, None, match.group(2), job_id)
         tasks[task_id] = task_info
 
 task_end_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobInProgress .*: Task .* has completed ([^ ]*) successfully.$')
@@ -51,6 +52,15 @@ class JobInfo:
         self.map_capacity = map_capacity
         self.reduce_capacity = reduce_capacity
 
+job_start_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress .*: (.*): nMaps=')
+def matchJobStart(line):
+    match = job_start_re.search(line)
+    if match:
+        job_id = match.group(1)
+        return job_id
+    else:
+        return None
+
 job_end_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: jobId=([^,]+),.*launchTime=(\d+),.*finishTime=(\d+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
 def matchJobEnd(line, jobs):
     match = job_end_re.search(line)
@@ -66,9 +76,13 @@ def findTasksInFile(path):
     with open(path, 'r') as f:
         jobs = {}
         tasks = {}
+        job_id = None
         for line in f:
+            maybe_job_id = matchJobStart(line)
+            if maybe_job_id:
+                job_id = maybe_job_id
             matchJobEnd(line, jobs)
-            matchTaskStart(line, tasks)
+            matchTaskStart(line, tasks, job_id)
             matchTaskEnd(line, tasks)
         return jobs, tasks
 
@@ -94,8 +108,8 @@ for job_id, job_info in sorted(jobs.items()):
         formatTime(job_info.end_time))
 
 for task_id, task_info in sorted(tasks.items()):
-    print '%s (%s): %s - %s' % (
-        task_id, task_info.task_type,
+    print '%s/%s (%s): %s - %s' % (
+        task_info.job_id, task_id, task_info.task_type,
         formatTime(task_info.start_time),
         formatTime(task_info.end_time))
 
@@ -119,3 +133,12 @@ print 'Task duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summariz
     (task_info.end_time - task_info.start_time).total_seconds()
     for task_info in tasks.values()
     if task_info.start_time and task_info.end_time])
+
+for job_id, job_info in sorted(jobs.items()):
+    total_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
+                                for task_info in tasks.values()
+                                if task_info.job_id == job_id])
+    job_duration = (job_info.end_time - job_info.start_time).total_seconds()
+    # TODO: Split into two phases because map slots and reduce slots overlap
+    total_slots = job_info.map_capacity + job_info.reduce_capacity
+    print '%s: utilization %.1f%%' % (job_id, total_task_durations / (job_duration * total_slots) * 100)
