@@ -14,13 +14,7 @@ if not os.path.isdir(sys.argv[1]):
     print "Not a directory: %s" % sys.argv[1]
     sys.exit(1)
 
-task_start_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobTracker .*: Adding task \((.*)\) .* to tip ([^ ]*), for tracker')
-task_end_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobInProgress .*: Task .* has completed ([^ ]*) successfully.$')
-
 class TaskInfo:
-    start_time = None
-    end_time = None
-    task_type = None
     def __init__(self, start_time, end_time, task_type):
         self.start_time = start_time
         self.end_time = end_time
@@ -30,6 +24,7 @@ def parseTime(time_string):
     return datetime.datetime.strptime(
         time_string + '000', '%Y-%m-%d %H:%M:%S,%f')
 
+task_start_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobTracker .*: Adding task \((.*)\) .* to tip ([^ ]*), for tracker')
 def matchTaskStart(line, tasks):
     match = task_start_re.match(line)
     if match:
@@ -38,6 +33,7 @@ def matchTaskStart(line, tasks):
         task_info = TaskInfo(task_start_time, None, match.group(2))
         tasks[task_id] = task_info
 
+task_end_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobInProgress .*: Task .* has completed ([^ ]*) successfully.$')
 def matchTaskEnd(line, tasks):
     match = task_end_re.match(line)
     if match:
@@ -48,19 +44,41 @@ def matchTaskEnd(line, tasks):
             task_info.end_time = task_end_time
             tasks[task_id] = task_info
 
+class JobInfo:
+    def __init__(self, start_time, end_time, map_capacity, reduce_capacity):
+        self.start_time = start_time
+        self.end_time = end_time
+        self.map_capacity = map_capacity
+        self.reduce_capacity = reduce_capacity
+
+job_end_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: jobId=([^,]+),.*launchTime=(\d+),.*finishTime=(\d+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
+def matchJobEnd(line, jobs):
+    match = job_end_re.search(line)
+    if match:
+        job_id = match.group(1)
+        job_info = JobInfo(datetime.datetime.utcfromtimestamp(int(match.group(2)) / 1000),
+                           datetime.datetime.utcfromtimestamp(int(match.group(3)) / 1000),
+                           int(match.group(4)),
+                           int(match.group(5)))
+        jobs[job_id] = job_info
+
 def findTasksInFile(path):
     with open(path, 'r') as f:
+        jobs = {}
         tasks = {}
         for line in f:
+            matchJobEnd(line, jobs)
             matchTaskStart(line, tasks)
             matchTaskEnd(line, tasks)
-        return tasks
+        return jobs, tasks
 
 # Load start and end times of Hadoop tasks
+jobs = {}
 tasks = {}
 for root, dirnames, filenames in os.walk(sys.argv[1]):
     for filename in fnmatch.filter(filenames, 'hadoop-hadoop-jobtracker-*.log*'):
-        file_tasks = findTasksInFile(os.path.join(root, filename))
+        file_jobs, file_tasks = findTasksInFile(os.path.join(root, filename))
+        jobs.update(file_jobs)
         tasks.update(file_tasks)
 
 def formatTime(t):
@@ -68,6 +86,12 @@ def formatTime(t):
         return t.strftime('%Y-%m-%d %H:%M:%S,%f')
     else:
         return 'None'
+
+for job_id, job_info in sorted(jobs.items()):
+    print '%s: %s - %s' % (
+        job_id,
+        formatTime(job_info.start_time),
+        formatTime(job_info.end_time))
 
 for task_id, task_info in sorted(tasks.items()):
     print '%s (%s): %s - %s' % (
@@ -77,12 +101,21 @@ for task_id, task_info in sorted(tasks.items()):
 
 def summarize(nums):
     v = sorted(nums)
-    return (v[0],
-            v[int(0.5 * len(v))],
-            v[int(0.99 * len(v))],
-            v[int(len(v) - 1)])
+    if v:
+        return (len(v),
+                v[0],
+                v[int(0.5 * len(v))],
+                v[int(0.99 * len(v))],
+                v[int(len(v) - 1)])
+    else:
+        return (0,0,0,0,0)
 
-print 'Task duration: min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summarize([
+print 'Job duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summarize([
+    (job_info.end_time - job_info.start_time).total_seconds()
+    for job_info in jobs.values()
+    if job_info.start_time and job_info.end_time])
+
+print 'Task duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summarize([
     (task_info.end_time - task_info.start_time).total_seconds()
     for task_info in tasks.values()
     if task_info.start_time and task_info.end_time])
