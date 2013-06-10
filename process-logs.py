@@ -46,8 +46,10 @@ def matchTaskEnd(line, tasks):
             tasks[task_id] = task_info
 
 class JobInfo:
-    def __init__(self, start_time, end_time, map_capacity, reduce_capacity):
+    def __init__(self, start_time, first_map_launch_time, first_reduce_launch_time, end_time, map_capacity, reduce_capacity):
         self.start_time = start_time
+        self.first_map_launch_time = first_map_launch_time
+        self.first_reduce_launch_time = first_reduce_launch_time
         self.end_time = end_time
         self.map_capacity = map_capacity
         self.reduce_capacity = reduce_capacity
@@ -61,15 +63,17 @@ def matchJobStart(line):
     else:
         return None
 
-job_end_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: jobId=([^,]+),.*launchTime=(\d+),.*finishTime=(\d+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
+job_end_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: jobId=([^,]+),.*launchTime=(\d+),firstMapTaskLaunchTime=(\d+),firstReduceTaskLaunchTime=(\d+),.*finishTime=(\d+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
 def matchJobEnd(line, jobs):
     match = job_end_re.search(line)
     if match:
         job_id = match.group(1)
-        job_info = JobInfo(datetime.datetime.utcfromtimestamp(int(match.group(2)) / 1000),
-                           datetime.datetime.utcfromtimestamp(int(match.group(3)) / 1000),
-                           int(match.group(4)),
-                           int(match.group(5)))
+        job_info = JobInfo(start_time=datetime.datetime.utcfromtimestamp(int(match.group(2)) / 1000),
+                           first_map_launch_time=datetime.datetime.utcfromtimestamp(int(match.group(3)) / 1000),
+                           first_reduce_launch_time=datetime.datetime.utcfromtimestamp(int(match.group(4)) / 1000),
+                           end_time=datetime.datetime.utcfromtimestamp(int(match.group(5)) / 1000),
+                           map_capacity=int(match.group(6)),
+                           reduce_capacity=int(match.group(7)))
         jobs[job_id] = job_info
 
 def findTasksInFile(path):
@@ -135,10 +139,20 @@ print 'Task duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summariz
     if task_info.start_time and task_info.end_time])
 
 for job_id, job_info in sorted(jobs.items()):
-    total_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
-                                for task_info in tasks.values()
-                                if task_info.job_id == job_id])
-    job_duration = (job_info.end_time - job_info.start_time).total_seconds()
-    # TODO: Split into two phases because map slots and reduce slots overlap
-    total_slots = job_info.map_capacity + job_info.reduce_capacity
-    print '%s: utilization %.1f%%' % (job_id, total_task_durations / (job_duration * total_slots) * 100)
+    tasks_for_job = [task_info for task_info in tasks.values() if task_info.job_id == job_id]
+    total_m_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
+                                  for task_info in tasks_for_job
+                                  if task_info.task_type == 'MAP'])
+    total_r_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
+                                  for task_info in tasks_for_job
+                                  if task_info.task_type == 'REDUCE'])
+    first_m_task_launched = min([task_info.start_time for task_info in tasks_for_job if task_info.task_type == 'MAP'])
+    last_m_task_finished = max([task_info.end_time for task_info in tasks_for_job if task_info.task_type == 'MAP'])
+    first_r_task_launched = min([task_info.start_time for task_info in tasks_for_job if task_info.task_type == 'REDUCE'])
+    last_r_task_finished = max([task_info.end_time for task_info in tasks_for_job if task_info.task_type == 'REDUCE'])
+    m_time = (last_m_task_finished - first_m_task_launched).total_seconds()
+    r_time = (last_r_task_finished - first_r_task_launched).total_seconds()
+    print '%s: m utilization %.1f%%, r utilization %.1f%%' % (
+        job_id,
+        total_m_task_durations / (m_time * job_info.map_capacity) * 100,
+        total_r_task_durations / (r_time * job_info.reduce_capacity) * 100)
