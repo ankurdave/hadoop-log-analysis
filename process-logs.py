@@ -105,17 +105,17 @@ def formatTime(t):
     else:
         return 'None'
 
-for job_id, job_info in sorted(jobs.items()):
-    print '%s: %s - %s' % (
-        job_id,
-        formatTime(job_info.start_time),
-        formatTime(job_info.end_time))
+# for job_id, job_info in sorted(jobs.items()):
+#     print '%s: %s - %s' % (
+#         job_id,
+#         formatTime(job_info.start_time),
+#         formatTime(job_info.end_time))
 
-for task_id, task_info in sorted(tasks.items()):
-    print '%s/%s (%s): %s - %s' % (
-        task_info.job_id, task_id, task_info.task_type,
-        formatTime(task_info.start_time),
-        formatTime(task_info.end_time))
+# for task_id, task_info in sorted(tasks.items()):
+#     print '%s/%s (%s): %s - %s' % (
+#         task_info.job_id, task_id, task_info.task_type,
+#         formatTime(task_info.start_time),
+#         formatTime(task_info.end_time))
 
 def summarize(nums):
     v = sorted(nums)
@@ -139,20 +139,42 @@ print 'Task duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summariz
     if task_info.start_time and task_info.end_time])
 
 for job_id, job_info in sorted(jobs.items()):
-    tasks_for_job = [task_info for task_info in tasks.values() if task_info.job_id == job_id]
-    total_m_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
-                                  for task_info in tasks_for_job
-                                  if task_info.task_type == 'MAP'])
-    total_r_task_durations = sum([(task_info.end_time - task_info.start_time).total_seconds()
-                                  for task_info in tasks_for_job
-                                  if task_info.task_type == 'REDUCE'])
-    first_m_task_launched = min([task_info.start_time for task_info in tasks_for_job if task_info.task_type == 'MAP'])
-    last_m_task_finished = max([task_info.end_time for task_info in tasks_for_job if task_info.task_type == 'MAP'])
-    first_r_task_launched = min([task_info.start_time for task_info in tasks_for_job if task_info.task_type == 'REDUCE'])
-    last_r_task_finished = max([task_info.end_time for task_info in tasks_for_job if task_info.task_type == 'REDUCE'])
-    m_time = (last_m_task_finished - first_m_task_launched).total_seconds()
-    r_time = (last_r_task_finished - first_r_task_launched).total_seconds()
-    print '%s: m utilization %.1f%%, r utilization %.1f%%' % (
-        job_id,
-        total_m_task_durations / (m_time * job_info.map_capacity) * 100,
-        total_r_task_durations / (r_time * job_info.reduce_capacity) * 100)
+    tasks_for_job = [task_info
+                     for task_info in tasks.values()
+                     if task_info.job_id == job_id
+                     and task_info.start_time and task_info.end_time]
+    map_tasks = [task_info
+                 for task_info in tasks_for_job
+                 if task_info.task_type == 'MAP']
+    reduce_tasks = [task_info
+                    for task_info in tasks_for_job
+                    if task_info.task_type == 'REDUCE']
+    total_m_task_durations = sum([
+        (task_info.end_time - task_info.start_time).total_seconds()
+        for task_info in map_tasks])
+    total_r_task_durations = sum([
+        (task_info.end_time - task_info.start_time).total_seconds()
+        for task_info in reduce_tasks])
+    if map_tasks:
+        first_m_task_launched = min(
+            [task_info.start_time for task_info in map_tasks])
+        last_m_task_finished = max(
+            [task_info.end_time for task_info in map_tasks])
+        m_time = (last_m_task_finished - first_m_task_launched).total_seconds()
+    if reduce_tasks:
+        first_r_task_launched = min(
+            [task_info.start_time for task_info in reduce_tasks])
+        last_r_task_finished = max(
+            [task_info.end_time for task_info in reduce_tasks])
+        r_time = (last_r_task_finished - first_r_task_launched).total_seconds()
+    if map_tasks and reduce_tasks:
+        m_utilization = (
+            total_m_task_durations / (m_time * job_info.map_capacity) * 100)
+        r_utilization = (
+            total_r_task_durations / (r_time * job_info.reduce_capacity) * 100)
+        task_stats = summarize([(task_info.end_time - task_info.start_time).total_seconds()
+        for task_info in map_tasks])
+        print '%s: m utilization %.1f%%, r utilization %.1f%%, tasks [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]' % (
+            (job_id, m_utilization, r_utilization) + task_stats)
+    else:
+        print '%s empty' % job_id
