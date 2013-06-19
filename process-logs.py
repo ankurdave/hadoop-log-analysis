@@ -138,6 +138,15 @@ print 'Task duration: n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f' % summariz
     for task_info in tasks.values()
     if task_info.start_time and task_info.end_time])
 
+def contains(task_info, time):
+    return task_info.start_time <= time and task_info.end_time >= time
+
+# TODO: handle adjacent but not overlapping
+def overlap(t1, t2):
+    def overlap_helper(t1, t2):
+        return contains(t1, t2.start_time) or contains(t1, t2.end_time)
+    return overlap_helper(t1, t2) or overlap_helper(t2, t1)
+
 for job_id, job_info in sorted(jobs.items()):
     tasks_for_job = [task_info
                      for task_info in tasks.values()
@@ -173,8 +182,26 @@ for job_id, job_info in sorted(jobs.items()):
         r_utilization = (
             total_r_task_durations / (r_time * job_info.reduce_capacity) * 100)
         task_stats = summarize([(task_info.end_time - task_info.start_time).total_seconds()
-        for task_info in map_tasks])
+                                for task_info in map_tasks])
+
         print '%s: m utilization %.1f%%, r utilization %.1f%%, tasks [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]' % (
             (job_id, m_utilization, r_utilization) + task_stats)
+        num_stragglers = 0
+        wasted_time = 0
+        # Check for stragglers (tasks that continue to run after all
+        # simultaneous tasks have finished)
+        for t1 in map_tasks:
+            simultaneous_tasks = filter(
+                lambda t2: t1 is not t2 and overlap(t1, t2), map_tasks)
+            if simultaneous_tasks:
+                last_simultaneous_task_end = max([t2.end_time for t2 in simultaneous_tasks])
+                if last_simultaneous_task_end < t1.end_time:
+                    num_stragglers += 1
+                    wasted_time += (t1.end_time - last_simultaneous_task_end).total_seconds()
+        job_duration = (job_info.end_time - job_info.start_time).total_seconds()
+        wasted_time_fraction = wasted_time / job_duration
+        if wasted_time_fraction > 0.3:
+            print '    # stragglers %d, wasted time %.2f, wasted time fraction %.1f%%' % (
+                 num_stragglers, wasted_time, wasted_time_fraction * 100)
     else:
         print '%s empty' % job_id
