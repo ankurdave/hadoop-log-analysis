@@ -5,6 +5,7 @@ import fnmatch
 import os
 import re
 import sys
+import xml.etree.ElementTree
 
 if len(sys.argv) < 2:
     print """Usage: process-logs.py <log_dir>"""
@@ -90,14 +91,33 @@ def findTasksInFile(path):
             matchTaskEnd(line, tasks)
         return jobs, tasks
 
+def readJobConf(conf_file, jobs):
+    conf = {}
+    for prop in xml.etree.ElementTree.parse(conf_file).getroot().iter('property'):
+        conf[prop.find('name').text] = prop.find('value').text
+    return conf
+
+def lookup(d, ks):
+    for k in ks:
+        if k in d:
+            return d[k]
+    return None
+
 # Load start and end times of Hadoop tasks
 jobs = {}
 tasks = {}
+job_confs = {}
 for root, dirnames, filenames in os.walk(sys.argv[1]):
     for filename in fnmatch.filter(filenames, 'hadoop-hadoop-jobtracker-*.log*'):
         file_jobs, file_tasks = findTasksInFile(os.path.join(root, filename))
         jobs.update(file_jobs)
         tasks.update(file_tasks)
+    for filename in fnmatch.filter(filenames, 'job_*_conf.xml'):
+        match = re.match('(job_.*)_conf.xml', filename)
+        if match:
+            job_id = match.group(1)
+            conf = readJobConf(os.path.join(root, filename), jobs)
+            job_confs[job_id] = conf
 
 def formatTime(t):
     if t:
@@ -203,5 +223,12 @@ for job_id, job_info in sorted(jobs.items()):
         if wasted_time_fraction > 0.3:
             print '    # stragglers %d, wasted time %.2f, wasted time fraction %.1f%%' % (
                  num_stragglers, wasted_time, wasted_time_fraction * 100)
+            if job_id in job_confs:
+                print '    %s, %s' % (
+                    lookup(conf, ['mapred.map.runner.class',
+                                  'mapred.mapper.class',
+                                  'mapreduce.map.class']),
+                    lookup(conf, ['mapred.reducer.class']))
+
     else:
         print '%s empty' % job_id
