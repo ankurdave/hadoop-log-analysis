@@ -224,11 +224,13 @@ for job_id, job_info in sorted(jobs.items()):
             print '    # stragglers %d, wasted time %.2f, wasted time fraction %.1f%%' % (
                  num_stragglers, wasted_time, wasted_time_fraction * 100)
             if job_id in job_confs:
-                print '    %s, %s' % (
+                print '    %s (%s), %s (%s)' % (
                     lookup(conf, ['mapred.map.runner.class',
                                   'mapred.mapper.class',
                                   'mapreduce.map.class']),
-                    lookup(conf, ['mapred.reducer.class']))
+                    'spec' if lookup(conf, ['mapred.map.tasks.speculative.execution']) == 'true' else 'no spec',
+                    lookup(conf, ['mapred.reducer.class']),
+                    'spec' if lookup(conf, ['mapred.reduce.tasks.speculative.execution']) == 'true' else 'no spec')
 
     else:
         print '%s empty' % job_id
