@@ -15,6 +15,17 @@ if not os.path.isdir(sys.argv[1]):
     print "Not a directory: %s" % sys.argv[1]
     sys.exit(1)
 
+class JobInfo:
+    def __init__(self, start_time, first_map_launch_time,
+                 first_reduce_launch_time, end_time, map_capacity,
+                 reduce_capacity):
+        self.start_time = start_time
+        self.first_map_launch_time = first_map_launch_time
+        self.first_reduce_launch_time = first_reduce_launch_time
+        self.end_time = end_time
+        self.map_capacity = map_capacity
+        self.reduce_capacity = reduce_capacity
+
 class TaskInfo:
     def __init__(self, start_time, end_time, task_type, job_id):
         self.start_time = start_time
@@ -23,19 +34,24 @@ class TaskInfo:
         self.job_id = job_id
 
 def parseTime(time_string):
-    return datetime.datetime.strptime(
-        time_string + '000', '%Y-%m-%d %H:%M:%S,%f')
+    return datetime.datetime.strptime(time_string + '000',
+                                      '%Y-%m-%d %H:%M:%S,%f')
 
-task_start_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobTracker .*: Adding task \((.*)\) .* to tip ([^ ]*), for tracker')
+task_start_re = re.compile(
+    '^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobTracker .*: ' +
+    'Adding task \((.*)\) .* to tip ([^ ]*), for tracker')
 def matchTaskStart(line, tasks, job_id):
     match = task_start_re.match(line)
     if match:
         task_id = match.group(3)
         task_start_time = parseTime(match.group(1))
-        task_info = TaskInfo(task_start_time, None, match.group(2), job_id)
+        task_info = TaskInfo(task_start_time, None,
+                             match.group(2), job_id)
         tasks[task_id] = task_info
 
-task_end_re = re.compile('^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobInProgress .*: Task .* has completed ([^ ]*) successfully.$')
+task_end_re = re.compile(
+    '^([0-9:, -]+) INFO org.apache.hadoop.mapred.JobInProgress .*: ' +
+    'Task .* has completed ([^ ]*) successfully.$')
 def matchTaskEnd(line, tasks):
     match = task_end_re.match(line)
     if match:
@@ -46,16 +62,8 @@ def matchTaskEnd(line, tasks):
             task_info.end_time = task_end_time
             tasks[task_id] = task_info
 
-class JobInfo:
-    def __init__(self, start_time, first_map_launch_time, first_reduce_launch_time, end_time, map_capacity, reduce_capacity):
-        self.start_time = start_time
-        self.first_map_launch_time = first_map_launch_time
-        self.first_reduce_launch_time = first_reduce_launch_time
-        self.end_time = end_time
-        self.map_capacity = map_capacity
-        self.reduce_capacity = reduce_capacity
-
-job_start_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress .*: (.*): nMaps=')
+job_start_re = re.compile(
+    'INFO org.apache.hadoop.mapred.JobInProgress .*: (.*): nMaps=')
 def matchJobStart(line):
     match = job_start_re.search(line)
     if match:
@@ -64,17 +72,25 @@ def matchJobStart(line):
     else:
         return None
 
-job_end_re = re.compile('INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: jobId=([^,]+),.*launchTime=(\d+),firstMapTaskLaunchTime=(\d+),firstReduceTaskLaunchTime=(\d+),.*finishTime=(\d+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
+def parseMillis(s):
+    return datetime.datetime.utcfromtimestamp(int(s) / 1000)
+
+job_end_re = re.compile(
+    'INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: ' +
+    'jobId=([^,]+),.*launchTime=(\d+),firstMapTaskLaunchTime=(\d+),' +
+    'firstReduceTaskLaunchTime=(\d+),.*finishTime=(\d+),.*' +
+    'clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
 def matchJobEnd(line, jobs):
     match = job_end_re.search(line)
     if match:
         job_id = match.group(1)
-        job_info = JobInfo(start_time=datetime.datetime.utcfromtimestamp(int(match.group(2)) / 1000),
-                           first_map_launch_time=datetime.datetime.utcfromtimestamp(int(match.group(3)) / 1000),
-                           first_reduce_launch_time=datetime.datetime.utcfromtimestamp(int(match.group(4)) / 1000),
-                           end_time=datetime.datetime.utcfromtimestamp(int(match.group(5)) / 1000),
-                           map_capacity=int(match.group(6)),
-                           reduce_capacity=int(match.group(7)))
+        job_info = JobInfo(
+            start_time=parseMillis(match.group(2)),
+            first_map_launch_time=parseMillis(match.group(3)),
+            first_reduce_launch_time=parseMillis(match.group(4)),
+            end_time=parseMillis(match.group(5)),
+            map_capacity=int(match.group(6)),
+            reduce_capacity=int(match.group(7)))
         jobs[job_id] = job_info
 
 def findTasksInFile(path):
@@ -92,24 +108,21 @@ def findTasksInFile(path):
         return jobs, tasks
 
 def readJobConf(conf_file, jobs):
+    conf_xml = xml.etree.ElementTree.parse(conf_file).getroot()
     conf = {}
-    for prop in xml.etree.ElementTree.parse(conf_file).getroot().iter('property'):
+    for prop in conf_xml.iter('property'):
         conf[prop.find('name').text] = prop.find('value').text
     return conf
-
-def lookup(d, ks):
-    for k in ks:
-        if k in d:
-            return d[k]
-    return None
 
 # Load start and end times of Hadoop tasks
 jobs = {}
 tasks = {}
 job_confs = {}
 for root, dirnames, filenames in os.walk(sys.argv[1]):
-    for filename in fnmatch.filter(filenames, 'hadoop-hadoop-jobtracker-*.log*'):
-        file_jobs, file_tasks = findTasksInFile(os.path.join(root, filename))
+    for filename in fnmatch.filter(
+            filenames, 'hadoop-hadoop-jobtracker-*.log*'):
+        file_jobs, file_tasks = findTasksInFile(
+            os.path.join(root, filename))
         jobs.update(file_jobs)
         tasks.update(file_tasks)
     for filename in fnmatch.filter(filenames, 'job_*_conf.xml'):
@@ -166,6 +179,12 @@ def overlap(t1, t2):
     def overlap_helper(t1, t2):
         return contains(t1, t2.start_time) or contains(t1, t2.end_time)
     return overlap_helper(t1, t2) or overlap_helper(t2, t1)
+
+def lookup(d, ks):
+    for k in ks:
+        if k in d:
+            return d[k]
+    return None
 
 for job_id, job_info in sorted(jobs.items()):
     tasks_for_job = [task_info
