@@ -17,12 +17,13 @@ if not os.path.isdir(sys.argv[1]):
 
 class JobInfo:
     def __init__(self, start_time, first_map_launch_time,
-                 first_reduce_launch_time, end_time, map_capacity,
+                 first_reduce_launch_time, end_time, status, map_capacity,
                  reduce_capacity):
         self.start_time = start_time
         self.first_map_launch_time = first_map_launch_time
         self.first_reduce_launch_time = first_reduce_launch_time
         self.end_time = end_time
+        self.status = status
         self.map_capacity = map_capacity
         self.reduce_capacity = reduce_capacity
 
@@ -78,19 +79,25 @@ def parseMillis(s):
 job_end_re = re.compile(
     'INFO org.apache.hadoop.mapred.JobInProgress\$JobSummary .*: ' +
     'jobId=([^,]+),.*launchTime=(\d+),firstMapTaskLaunchTime=(\d+),' +
-    'firstReduceTaskLaunchTime=(\d+),.*finishTime=(\d+),.*' +
-    'clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
+    '(firstReduceTaskLaunchTime=(\d+),)?.*finishTime=(\d+),.*' +
+    'status=([^,]+),.*clusterMapCapacity=(\d+),clusterReduceCapacity=(\d+)')
+
 def matchJobEnd(line, jobs):
     match = job_end_re.search(line)
     if match:
         job_id = match.group(1)
+        if match.group(4):
+            first_reduce_launch_time = parseMillis(match.group(5))
+        else:
+            first_reduce_launch_time = None
         job_info = JobInfo(
             start_time=parseMillis(match.group(2)),
             first_map_launch_time=parseMillis(match.group(3)),
-            first_reduce_launch_time=parseMillis(match.group(4)),
-            end_time=parseMillis(match.group(5)),
-            map_capacity=int(match.group(6)),
-            reduce_capacity=int(match.group(7)))
+            first_reduce_launch_time=first_reduce_launch_time,
+            end_time=parseMillis(match.group(6)),
+            status=match.group(7),
+            map_capacity=int(match.group(8)),
+            reduce_capacity=int(match.group(9)))
         jobs[job_id] = job_info
 
 def findTasksInFile(path):
@@ -215,41 +222,47 @@ for job_id, job_info in sorted(jobs.items()):
         last_r_task_finished = max(
             [task_info.end_time for task_info in reduce_tasks])
         r_time = (last_r_task_finished - first_r_task_launched).total_seconds()
-    if map_tasks and reduce_tasks:
+
+    if map_tasks:
         m_utilization = (
             total_m_task_durations / (m_time * job_info.map_capacity) * 100)
+    else:
+        m_utilization = 0
+    if reduce_tasks:
         r_utilization = (
             total_r_task_durations / (r_time * job_info.reduce_capacity) * 100)
-        task_stats = summarize([(task_info.end_time - task_info.start_time).total_seconds()
-                                for task_info in map_tasks])
-
-        print '%s: m utilization %.1f%%, r utilization %.1f%%, tasks [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]' % (
-            (job_id, m_utilization, r_utilization) + task_stats)
-        num_stragglers = 0
-        wasted_time = 0
-        # Check for stragglers (tasks that continue to run after all
-        # simultaneous tasks have finished)
-        for t1 in map_tasks:
-            simultaneous_tasks = filter(
-                lambda t2: t1 is not t2 and overlap(t1, t2), map_tasks)
-            if simultaneous_tasks:
-                last_simultaneous_task_end = max([t2.end_time for t2 in simultaneous_tasks])
-                if last_simultaneous_task_end < t1.end_time:
-                    num_stragglers += 1
-                    wasted_time += (t1.end_time - last_simultaneous_task_end).total_seconds()
-        job_duration = (job_info.end_time - job_info.start_time).total_seconds()
-        wasted_time_fraction = wasted_time / job_duration
-        if wasted_time_fraction > 0.3:
-            print '    # stragglers %d, wasted time %.2f, wasted time fraction %.1f%%' % (
-                 num_stragglers, wasted_time, wasted_time_fraction * 100)
-            if job_id in job_confs:
-                print '    %s (%s), %s (%s)' % (
-                    lookup(conf, ['mapred.map.runner.class',
-                                  'mapred.mapper.class',
-                                  'mapreduce.map.class']),
-                    'spec' if lookup(conf, ['mapred.map.tasks.speculative.execution']) == 'true' else 'no spec',
-                    lookup(conf, ['mapred.reducer.class']),
-                    'spec' if lookup(conf, ['mapred.reduce.tasks.speculative.execution']) == 'true' else 'no spec')
-
     else:
-        print '%s empty' % job_id
+        r_utilization = 0
+
+    task_stats = summarize([(task_info.end_time - task_info.start_time).total_seconds()
+                            for task_info in map_tasks])
+
+    print ('%s (%s): m utilization %.1f%%, r utilization %.1f%%, ' + 
+           'tasks [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]') % (
+               (job_id, job_info.status, m_utilization, r_utilization) +
+               task_stats)
+    num_stragglers = 0
+    wasted_time = 0
+    # Check for stragglers (tasks that continue to run after all
+    # simultaneous tasks have finished)
+    for t1 in map_tasks:
+        simultaneous_tasks = filter(
+            lambda t2: t1 is not t2 and overlap(t1, t2), map_tasks)
+        if simultaneous_tasks:
+            last_simultaneous_task_end = max([t2.end_time for t2 in simultaneous_tasks])
+            if last_simultaneous_task_end < t1.end_time:
+                num_stragglers += 1
+                wasted_time += (t1.end_time - last_simultaneous_task_end).total_seconds()
+    job_duration = (job_info.end_time - job_info.start_time).total_seconds()
+    wasted_time_fraction = wasted_time / job_duration
+    if wasted_time_fraction > 0.1:
+        print '    # stragglers %d, wasted time %.2f, wasted time fraction %.1f%%' % (
+            num_stragglers, wasted_time, wasted_time_fraction * 100)
+        if job_id in job_confs:
+            print '    %s (%s), %s (%s)' % (
+                lookup(conf, ['mapred.map.runner.class',
+                              'mapred.mapper.class',
+                              'mapreduce.map.class']),
+                'spec' if lookup(conf, ['mapred.map.tasks.speculative.execution']) == 'true' else 'no spec',
+                lookup(conf, ['mapred.reducer.class']),
+                'spec' if lookup(conf, ['mapred.reduce.tasks.speculative.execution']) == 'true' else 'no spec')
