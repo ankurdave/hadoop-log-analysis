@@ -193,6 +193,12 @@ def lookup(d, ks):
             return d[k]
     return None
 
+distributions = {}
+keys = ['mapred.reduce.tasks', 'io.sort.spill.percent',
+        'io.sort.record.percent', 'io.sort.mb']
+for key in keys:
+    distributions[key] = {}
+
 for job_id, job_info in sorted(jobs.items()):
     tasks_for_job = [task_info
                      for task_info in tasks.values()
@@ -266,3 +272,20 @@ for job_id, job_info in sorted(jobs.items()):
                 'spec' if lookup(conf, ['mapred.map.tasks.speculative.execution']) == 'true' else 'no spec',
                 lookup(conf, ['mapred.reducer.class']),
                 'spec' if lookup(conf, ['mapred.reduce.tasks.speculative.execution']) == 'true' else 'no spec')
+
+
+    # Update the distributions of job conf parameters vs job completion time
+    if job_id in job_confs:
+        for key in keys:
+            if key in job_confs[job_id]:
+                job_value_for_key = job_confs[job_id][key]
+                if job_value_for_key in distributions[key]:
+                    distributions[key][job_value_for_key] += [job_duration]
+                else:
+                    distributions[key][job_value_for_key] = [job_duration]
+
+# Print distributions of job conf parameters vs job completion time
+for key in keys:
+    for value_for_key, job_durations in sorted(distributions[key].items()):
+        print "%s=%s: [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]" % (
+            (key, value_for_key) + summarize(job_durations))
