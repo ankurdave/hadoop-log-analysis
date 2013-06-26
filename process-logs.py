@@ -278,7 +278,7 @@ for job_id, job_info in sorted(jobs.items()):
     if job_id in job_confs:
         for key in keys:
             if key in job_confs[job_id]:
-                job_value_for_key = job_confs[job_id][key]
+                job_value_for_key = float(job_confs[job_id][key])
                 if job_value_for_key in distributions[key]:
                     distributions[key][job_value_for_key] += [job_duration]
                 else:
