@@ -73,6 +73,11 @@ def matchJobStart(line):
     else:
         return None
 
+# step_failed_re = re.compile(
+#     'INFO aws157.instancecontroller.master.steprunner.StepExecutor ' +
+#     '\(StepExecutor\): Step with stepId \'\d+\' failed, and ignore failures ' +
+#     'false, so cancelling pending steps')
+
 def parseMillis(s):
     return datetime.datetime.utcfromtimestamp(int(s) / 1000)
 
@@ -121,10 +126,62 @@ def readJobConf(conf_file, jobs):
         conf[prop.find('name').text] = prop.find('value').text
     return conf
 
+class ResourceUtilization:
+    def __init__(self):
+        pass
+        # self.cpu_util = cpu_util
+        # self.disk_space_util = disk_space_util
+        # self.disk_io_util = disk_io_util
+        # self.mem_util = mem_util
+        # self.net_util = net_util
+
+def readInstanceState(state_file):
+    total_cpu_usage = 0
+    total_mem_usage = 0
+    with open(state_file, 'r') as f:
+        in_process_list = False
+        for line in f:
+            if line == '# whats running\n':
+                in_process_list = True
+            if line == '\n':
+                in_process_list = False
+
+            if in_process_list:
+                if line.startswith('hadoop'):
+                    cols = line.split()
+                    cpu_usage_percent = float(cols[2])
+                    mem_usage_percent = float(cols[3])
+                    total_cpu_usage += cpu_usage_percent
+                    total_mem_usage += mem_usage_percent
+    util = ResourceUtilization()
+    util.cpu_util = total_cpu_usage # TODO: normalize to number of cores
+    util.mem_util = total_mem_usage # TODO: normalize to amount of memory
+    return util
+
+# HDFS usage:
+# Configured Capacity: 159489925120 (148.54 GB)
+# Present Capacity: 159489925120 (148.54 GB)
+# DFS Remaining: 159489916913 (148.54 GB)
+# DFS Used: 8207 (8.01 KB)
+# DFS Used%: 0%
+# Under replicated blocks: 0
+# Blocks with corrupt replicas: 0
+# Missing blocks: 0
+
+# whats memory usage look like
+# free -m
+#              total       used       free     shared    buffers     cached
+# Mem:          1676        695        981          0          6        207
+# -/+ buffers/cache:        481       1194
+# Swap:            0          0          0
+
+
+
 # Load start and end times of Hadoop tasks
 jobs = {}
 tasks = {}
 job_confs = {}
+resource_utilizations = []
 for root, dirnames, filenames in os.walk(sys.argv[1]):
     for filename in fnmatch.filter(
             filenames, 'hadoop-hadoop-jobtracker-*.log*'):
@@ -138,6 +195,9 @@ for root, dirnames, filenames in os.walk(sys.argv[1]):
             job_id = match.group(1)
             conf = readJobConf(os.path.join(root, filename), jobs)
             job_confs[job_id] = conf
+    for filename in fnmatch.filter(filenames, 'instance-state.log*'):
+        utilization = readInstanceState(os.path.join(root, filename))
+        resource_utilizations += [utilization]
 
 def formatTime(t):
     if t:
@@ -289,3 +349,7 @@ for key in keys:
     for value_for_key, job_durations in sorted(distributions[key].items()):
         print "%s=%s: [n %d, min %.2f, tp50 %.2f, tp99 %.2f, max %.2f]" % (
             (key, value_for_key) + summarize(job_durations))
+
+# Print resource utilization
+for util in resource_utilizations:
+    print "cpu=%f, mem=%f" % (util.cpu_util, util.mem_util)
