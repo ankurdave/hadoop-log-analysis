@@ -1,0 +1,85 @@
+68 jobflows:
+
+m1.small (88 samples):
+    CPU: min 0.00, tp50 5.95, tp99 100.00, max 100.00
+    Mem usage: min 307.00, tp50 1236.00, tp99 1630.00, max 1630.00
+    Mem total: min 1676.00, tp50 1676.00, tp99 1677.00, max 1677.00
+    Disk usage: min 2.5G, tp50 2.9G, tp99 3.2G, max 3.2G
+    Disk total: min 161.5G, tp50 162.4G, tp99 162.4G, max 162.4G
+
+m1.medium (15 samples):
+    CPU: min 0.00, tp50 1.01, tp99 100.00, max 100.00
+    Mem usage: min 643.00, tp50 1778.00, tp99 2880.00, max 2880.00
+    Mem total: min 3754.00, tp50 3754.00, tp99 3754.00, max 3754.00
+    Disk usage: min 2.9G, tp50 3.1G, tp99 3.9G, max 3.9G
+    Disk total: min 415.6G, tp50 415.6G, tp99 415.6G, max 415.6G
+
+m1.large (1770 samples):
+    CPU: min 0.00, tp50 46.03, tp99 100.00, max 100.00
+    Mem usage: min 0.00, tp50 5773.00, tp99 7419.00, max 7432.00
+    Mem total: min 0.00, tp50 7454.00, tp99 7473.00, max 7687.00
+    Disk usage: min 0, tp50 10.3G, tp99 39.9G, max 43.9G
+    Disk total: min 0, tp50 861.0G, tp99 861.0G, max 861.0G
+
+m1.xlarge (584 samples):
+    CPU: min 0.00, tp50 0.25, tp99 85.35, max 100.00
+    Mem usage: min 259.00, tp50 1103.00, tp99 7326.00, max 14909.00
+    Mem total: min 14984.00, tp50 14984.00, tp99 14984.00, max 14984.00
+    Disk usage: min 3.0G, tp50 3.2G, tp99 4.0G, max 9.8G
+    Disk total: min 1.7T, tp50 1.7T, tp99 1.7T, max 1.7T
+
+c1.medium (109 samples):
+    CPU: min 0.00, tp50 9.65, tp99 100.00, max 100.00
+    Mem usage: min 0.00, tp50 975.00, tp99 1672.00, max 1731.00
+    Mem total: min 0.00, tp50 1717.00, tp99 1746.00, max 1746.00
+    Disk usage: min 0, tp50 2.9G, tp99 3.9G, max 4.0G
+    Disk total: min 0, tp50 351.6G, tp99 352.4G, max 352.4G
+
+c1.xlarge (453 samples):
+    CPU: min 0.00, tp50 2.16, tp99 19.55, max 100.00
+    Mem usage: min 428.00, tp50 1403.00, tp99 6561.00, max 7162.00
+    Mem total: min 6952.00, tp50 6969.00, tp99 7175.00, max 7175.00
+    Disk usage: min 2.9G, tp50 3.2G, tp99 14.4G, max 14.8G
+    Disk total: min 1.6T, tp50 1.7T, tp99 1.7T, max 1.7T
+
+m2.xlarge (254 samples):
+    CPU: min 0.00, tp50 0.25, tp99 96.00, max 99.60
+    Mem usage: min 0.00, tp50 1178.00, tp99 17038.00, max 17042.00
+    Mem total: min 0.00, tp50 17084.00, tp99 17119.00, max 17119.00
+    Disk usage: min 0, tp50 3.2G, tp99 19.2G, max 19.2G
+    Disk total: min 0, tp50 445.1G, tp99 466.7G, max 466.7G
+
+m2.2xlarge (72 samples):
+    CPU: min 0.00, tp50 14.80, tp99 100.00, max 100.00
+    Mem usage: min 1810.00, tp50 7793.00, tp99 34150.00, max 34150.00
+    Mem total: min 34310.00, tp50 34310.00, tp99 34310.00, max 34310.00
+    Disk usage: min 3.2G, tp50 5.2G, tp99 49.1G, max 49.1G
+    Disk total: min 883.9G, tp50 883.9G, tp99 883.9G, max 883.9G
+
+m2.4xlarge (102 samples):
+    CPU: min 0.00, tp50 7.36, tp99 49.74, max 83.15
+    Mem usage: min 1840.00, tp50 4778.00, tp99 47762.00, max 50373.00
+    Mem total: min 68556.00, tp50 70007.00, tp99 70007.00, max 70007.00
+    Disk usage: min 3.2G, tp50 3.6G, tp99 23.8G, max 24.9G
+    Disk total: min 1.7T, tp50 1.7T, tp99 1.7T, max 1.7T
+
+cc1.4xlarge (16 samples):
+    CPU: min 0.00, tp50 0.12, tp99 8.02, max 8.02
+    Mem usage: min 506.00, tp50 1888.00, tp99 2573.00, max 2573.00
+    Mem total: min 21541.00, tp50 21541.00, tp99 22610.00, max 22610.00
+    Disk usage: min 2.9G, tp50 3.6G, tp99 4.4G, max 4.4G
+    Disk total: min 1.7T, tp50 1.7T, tp99 1.7T, max 1.7T
+
+cc2.8xlarge (2 samples):
+    CPU: min 0.00, tp50 0.03, tp99 39.86, max 39.86
+    Mem usage: min 934.00, tp50 962.00, tp99 962.00, max 962.00
+    Mem total: min 59929.00, tp50 59929.00, tp99 59929.00, max 59929.00
+    Disk usage: min 3.1G, tp50 3.1G, tp99 3.1G, max 3.1G
+    Disk total: min 3.4T, tp50 3.4T, tp99 3.4T, max 3.4T
+
+cg1.4xlarge (2 samples):
+    CPU: min 6.25, tp50 11.48, tp99 13.16, max 13.16
+    Mem usage: min 1606.00, tp50 1613.00, tp99 1613.00, max 1613.00
+    Mem total: min 21541.00, tp50 21541.00, tp99 21541.00, max 21541.00
+    Disk usage: min 4.6G, tp50 4.6G, tp99 4.6G, max 4.6G
+    Disk total: min 43.9G, tp50 43.9G, tp99 43.9G, max 43.9G

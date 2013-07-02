@@ -1,0 +1,86 @@
+436 jobflows, 3943 instances:
+
+m1.small (4288 samples):
+	CPU: min 0.00, tp50 1.00, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 905, tp99 1559, max 1689
+	Mem total: min 0, tp50 1676, tp99 1706, max 1706
+	Disk usage: min 0, tp50 2.7G, tp99 3.4G, max 24.7G
+	Disk total: min 0, tp50 162.4G, tp99 162.4G, max 162.4G
+
+m1.medium (307 samples):
+	CPU: min 0.00, tp50 2.02, tp99 100.00, max 100.00
+	Mem usage: min 387, tp50 1228, tp99 3029, max 3447
+	Mem total: min 3754, tp50 3754, tp99 3754, max 3765
+	Disk usage: min 2.9G, tp50 3.4G, tp99 4.6G, max 5.1G
+	Disk total: min 413.7G, tp50 415.6G, tp99 415.6G, max 415.6G
+
+m1.large (6054 samples):
+	CPU: min 0.00, tp50 44.44, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 6115, tp99 7435, max 7673
+	Mem total: min 0, tp50 7454, tp99 7687, max 7687
+	Disk usage: min 0, tp50 13.0G, tp99 825.3G, max 825.3G
+	Disk total: min 0, tp50 861.0G, tp99 1.6T, max 1.6T
+
+m1.xlarge (14944 samples):
+	CPU: min 0.00, tp50 11.68, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 10426, tp99 14946, max 15343
+	Mem total: min 0, tp50 15017, tp99 15367, max 15367
+	Disk usage: min 0, tp50 17.4G, tp99 90.0G, max 159.0G
+	Disk total: min 0, tp50 1.7T, tp99 1.7T, max 1.7T
+
+c1.medium (2326 samples):
+	CPU: min 0.00, tp50 14.48, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 1436, tp99 1736, max 1741
+	Mem total: min 0, tp50 1746, tp99 1746, max 1746
+	Disk usage: min 0, tp50 15.1G, tp99 233.7G, max 237.7G
+	Disk total: min 0, tp50 342.6G, tp99 352.4G, max 352.4G
+
+c1.xlarge (1088 samples):
+	CPU: min 0.00, tp50 1.69, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 1412, tp99 7054, max 7162
+	Mem total: min 0, tp50 6969, tp99 7175, max 7175
+	Disk usage: min 0, tp50 3.3G, tp99 14.5G, max 17.9G
+	Disk total: min 0, tp50 1.7T, tp99 1.7T, max 1.7T
+
+m2.xlarge (1110 samples):
+	CPU: min 0.00, tp50 1.99, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 5994, tp99 17035, max 17486
+	Mem total: min 0, tp50 17084, tp99 17507, max 17507
+	Disk usage: min 0, tp50 10.8G, tp99 19.2G, max 19.2G
+	Disk total: min 0, tp50 445.1G, tp99 466.7G, max 466.7G
+
+m2.2xlarge (260 samples):
+	CPU: min 0.00, tp50 16.27, tp99 100.00, max 100.00
+	Mem usage: min 188, tp50 4653, tp99 34149, max 34150
+	Mem total: min 34240, tp50 34240, tp99 35007, max 35007
+	Disk usage: min 2.3G, tp50 4.0G, tp99 57.9G, max 58.9G
+	Disk total: min 883.9G, tp50 900.9G, tp99 900.9G, max 900.9G
+
+m2.4xlarge (848 samples):
+	CPU: min 0.00, tp50 0.13, tp99 100.00, max 100.00
+	Mem usage: min 0, tp50 2091, tp99 62199, max 68247
+	Mem total: min 0, tp50 68556, tp99 70007, max 70007
+	Disk usage: min 0, tp50 3.3G, tp99 36.9G, max 55.9G
+	Disk total: min 0, tp50 1.7T, tp99 3.4T, max 3.4T
+
+cc1.4xlarge (201 samples):
+	CPU: min 0.00, tp50 4.72, tp99 94.26, max 97.51
+	Mem usage: min 506, tp50 2205, tp99 22494, max 22499
+	Mem total: min 21541, tp50 22610, tp99 22610, max 22610
+	Disk usage: min 2.9G, tp50 3.9G, tp99 166.0G, max 170.0G
+	Disk total: min 1.7T, tp50 1.7T, tp99 1.7T, max 1.7T
+
+cc2.8xlarge (808 samples):
+	CPU: min 0.00, tp50 3.22, tp99 97.07, max 99.94
+	Mem usage: min 0, tp50 20349, tp99 45747, max 59638
+	Mem total: min 0, tp50 59929, tp99 59929, max 59929
+	Disk usage: min 0, tp50 4.1G, tp99 27.9G, max 46.5G
+	Disk total: min 0, tp50 365.9G, tp99 3.4T, max 3.4T
+
+cg1.4xlarge (11 samples):
+	CPU: min 0.00, tp50 6.38, tp99 38.50, max 38.50
+	Mem usage: min 549, tp50 1333, tp99 2010, max 2010
+	Mem total: min 21541, tp50 21541, tp99 21541, max 21541
+	Disk usage: min 0, tp50 4.6G, tp99 5.1G, max 5.1G
+	Disk total: min 0, tp50 43.9G, tp99 43.9G, max 43.9G
+
